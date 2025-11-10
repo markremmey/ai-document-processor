@@ -24,15 +24,17 @@ def run(inputData: dict):
     """
     try:
       # Load the prompt
-      text_result = inputData.get('text_result')
+      jobRecord = inputData.get('record')
+      jobCategoryMappings = inputData.get('jobCategoryMappings')
       instance_id = inputData.get('instance_id')
-      
+
       prompt_json = load_prompts()
       
-      full_user_prompt = prompt_json['user_prompt'] + "\n\n" + text_result
+      full_user_prompt = prompt_json['user_prompt'] + "\n\n" + "Job Category Mappings" + json.dumps(jobCategoryMappings) + "\n\n" + "Job Record to categorize:" + json.dumps(jobRecord)
       # Call the Azure OpenAI service
       logging.info(f"callAoai.py: Full user prompt: {full_user_prompt}")
       response_content = run_prompt(instance_id, prompt_json['system_prompt'], full_user_prompt)
+      
       if response_content.startswith('```json') and response_content.endswith('```'):
         response_content = response_content.strip('`')
         response_content = response_content.replace('json', '', 1).strip()
