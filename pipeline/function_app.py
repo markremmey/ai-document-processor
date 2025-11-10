@@ -1,9 +1,9 @@
 import azure.functions as func
 import azure.durable_functions as df
 import json
-from activities import callAoai
+from activities import callAoai, sharepointLookup
 from configuration import Configuration
-
+import logging
 from pipelineUtils.prompts import load_prompts
 from pipelineUtils.azure_openai import run_prompt
 
@@ -28,11 +28,11 @@ async def start_orchestrator_http(req: func.HttpRequest, client):
     {
         "records": [
             {
-            "company": "McDonald's",
-            "industry": "Restaurant (8)"
+             "title": "Sample Title",
+             "siteUrl": "https://contoso.sharepoint.com/sites/Marketing",
             }
         ]
-        }
+    }
 
     client (DurableOrchestrationClient): The Durable Functions client.
   response:
@@ -58,29 +58,38 @@ async def start_orchestrator_http(req: func.HttpRequest, client):
 @app.function_name(name="orchestrator")
 @app.orchestration_trigger(context_name="context")
 def run(context):
-  records_array = context.get_input()
-  logging.info(f"Context {context}")
-  logging.info(f"Input data: {records_array}")
-  logging.info(f"Number of records to process: {len(records_array)}")
+    records_array = context.get_input()
+    logging.info(f"Context {context}")
+    logging.info(f"Input data: {records_array}")
+    logging.info(f"Number of records to process: {len(records_array)}")
 
-  file_path = 'data/jobCategoryMapping.json'
-  # Get Job Category mappings from local files data/jobCategoryMapping.json
-  with open(file_path, mode='r') as f:
-    jobCategoryMappings = json.load(f)
+    # file_path = 'data/jobCategoryMapping.json'
+    # Get Job Category mappings from local files data/jobCategoryMapping.json
 
-  for record in records_array:
-    logging.info(f"Calling sub orchestrator for record: {record}")
-    call_aoai_input = {
-      "record": record,
-      "jobCategoryMappings": jobCategoryMappings,
-      "instance_id": context.instance_id
+    for record in records_array:
+        logging.info(f"Processing record: {record}")
+        title = record.get('title')
+        siteUrl = record.get('siteUrl')
+
+        sharepointInput = {
+            "title": title,
+            "siteUrl": siteUrl
+        }
+        logging.info(f"Sharepoint Input: {sharepointInput}")
+        sharepointOutput = yield context.call_activity("sharepointLookup", sharepointInput)
+        logging.info(f"Sharepoint Output: {sharepointOutput}")
+        call_aoai_input = {
+            "vendor_history": sharepointOutput.get('vendor_history'),
+            "current_record": record.get('current_record'),
+            "instance_id": context.instance_id
+        }
+
+        aoaiOutput = yield context.call_activity("callAoai", call_aoai_input)
+        logging.info(f"AOAI Output: {aoaiOutput}")
+
+    return {
+        "aoaiOutput": aoaiOutput
     }
 
-  aoaiOutput = yield context.call_activity("callAoai", call_aoai_input)
-  
-  return {
-     "aoaiOutput": aoaiOutput
-  }   
-
-
+app.register_functions(sharepointLookup.bp)
 app.register_functions(callAoai.bp)

@@ -1,11 +1,10 @@
 system_prompt: |
-  Examine the Job Category Mappings and the provided job record to categorize the job listing
-
+  Examine the sharepoint vendor history and identify if any of fields provided in the current record look anamolous
 
 user_prompt: 
   "Generate the output job classification as previously instructed. Generate a JSON object with the following fields:
-   - JobCategoryId: The ID of the job classification.
-   - JobCategory: The category that best fits the job listing based on the provided Job Category Mappings.
-   - ConfidenceScore: A score between 0 and 1 indicating the confidence level of the categorization.
+   - 'vendor_name': The name of the vendor from the sharepoint history.
+   - 'anamoly_assessment': An analysis of whether any fields in the current record appear anamolous compared to the sharepoint vendor history. Provide a brief explanation for your assessment.
+   - 'confidence_score': A confidence score (0-100) indicating the reliability of your assessment.
    
    Ensure that the output is a valid JSON object without any additional text or formatting."

@@ -85,11 +85,15 @@ The default pipeline processes PDFs from the azure storage account bronze contai
 
 ## Start the function locally
 - Linux / WSL
-  - Get Remote settings from the function app: `./scripts/getRemoteSettings.sh`
+  - Ensure Storage accounts enable shared key access
+  - Get Remote settings from the function app: `./scripts/getRemoteSettings.sh`\
+  - Check to ensure that Blob Connections strings are present in local.settings.json
   - Start the venv and the function app locally `./scripts/startLocal.sh`
 
 - Windows / PWSH
+  - Ensure Storage accounts enable shared key access
   - Get Remote settings from the function app: `./scripts/getRemoteSettings.ps1`
+  - Check to ensure that Blob Connections strings are present in local.settings.json
   - Start the venv and the function app locally `./scripts/startLocal.ps1`
 
 ### Troubleshooting

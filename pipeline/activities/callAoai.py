@@ -23,14 +23,14 @@ def run(inputData: dict):
         str: The response from the Azure OpenAI service.
     """
     try:
-      # Load the prompt
-      jobRecord = inputData.get('record')
-      jobCategoryMappings = inputData.get('jobCategoryMappings')
+      # Get JSON input data
+      current_record = inputData.get('current_record')
+      vendor_history = inputData.get('vendor_history')
       instance_id = inputData.get('instance_id')
-
+      # Load the prompt
       prompt_json = load_prompts()
       
-      full_user_prompt = prompt_json['user_prompt'] + "\n\n" + "Job Category Mappings" + json.dumps(jobCategoryMappings) + "\n\n" + "Job Record to categorize:" + json.dumps(jobRecord)
+      full_user_prompt = prompt_json['user_prompt'] + "\n\n" + "Vendor History for context" + json.dumps(vendor_history) + "\n\n" + "Current Record to asssess for anamolies:" + json.dumps(current_record)
       # Call the Azure OpenAI service
       logging.info(f"callAoai.py: Full user prompt: {full_user_prompt}")
       response_content = run_prompt(instance_id, prompt_json['system_prompt'], full_user_prompt)
@@ -39,9 +39,9 @@ def run(inputData: dict):
         response_content = response_content.strip('`')
         response_content = response_content.replace('json', '', 1).strip()
       
-      json_str = response_content
+      
       # Return the response
-      return json_str
+      return response_content
   
     except Exception as e:
         logging.error(f"Error processing Sub Orchestration (callAoai): {instance_id}: {e}")
