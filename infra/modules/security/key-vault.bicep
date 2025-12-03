@@ -8,9 +8,6 @@ param location string = resourceGroup().location
 @description('Tags for the resource.')
 param tags object = {}
 
-param keyVaultReuse bool
-param existingKeyVaultResourceGroupName string
-
 param publicNetworkAccess string = 'Enabled'
 
 @description('Secret Keys to add to App Configuration')
@@ -50,12 +47,7 @@ param diagnosticSettings diagnosticSettingsInfo = {
   ]
 }
 
-resource existingKeyVault 'Microsoft.KeyVault/vaults@2024-04-01-preview' existing = if (keyVaultReuse) {
-  scope: resourceGroup(existingKeyVaultResourceGroupName)
-  name: name
-}
-
-resource keyVault 'Microsoft.KeyVault/vaults@2024-04-01-preview' = if (!keyVaultReuse) {
+resource keyVault 'Microsoft.KeyVault/vaults@2024-04-01-preview' = {
   name: name
   location: location
   tags: tags
@@ -122,11 +114,11 @@ resource secret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = [for (config, i
 ]
 
 @description('ID for the deployed Key Vault resource.')
-output id string = keyVaultReuse ? existingKeyVault.id: keyVault.id
+output id string = keyVault.id
 @description('Name for the deployed Key Vault resource.')
-output name string = keyVaultReuse ? existingKeyVault.name: keyVault.name
+output name string = keyVault.name
 @description('URI for the deployed Key Vault resource.')
-output uri string = keyVaultReuse ? existingKeyVault.properties.vaultUri: keyVault.properties.vaultUri
+output uri string = keyVault.properties.vaultUri
 @description('Urls to the secrets created in the Key Vault for app config')
 output secrets array = [for (config, i) in secureAppSettings: {
   name: config.name

@@ -14,8 +14,6 @@ param identityId string?
   'Disabled'
 ])
 param publicNetworkAccess string = 'Enabled'
-param existingStorageResourceGroupName string
-param storageReuse bool
 param deployStorageAccount bool = true
 
 param allowBlobPublicAccess bool = false
@@ -81,11 +79,6 @@ param blobContainerRetention blobContainerRetentionInfo = {
 param disableLocalAuth bool = false
 @description('Role assignments to create for the Storage Account.')
 param roleAssignments roleAssignmentInfo[] = []
-
-resource existingStorage 'Microsoft.Storage/storageAccounts@2024-01-01' existing  = if (storageReuse && deployStorageAccount) {
-  scope: resourceGroup(existingStorageResourceGroupName)
-  name: name
-}
 
 resource newStorageAccount 'Microsoft.Storage/storageAccounts@2024-01-01' = {
   name: name
@@ -157,8 +150,8 @@ resource assignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
 ]
 
 @description('ID for the deployed Storage Account resource.')
-output id string = !deployStorageAccount ? '' : storageReuse ? existingStorage.id : newStorageAccount.id
+output id string = !deployStorageAccount ? '' : newStorageAccount.id
 @description('Name for the deployed Storage Account resource.')
-output name string = !deployStorageAccount ? '' : storageReuse ? existingStorage.name : newStorageAccount.name
+output name string = !deployStorageAccount ? '' : newStorageAccount.name
 
-output primaryEndpoints object = !deployStorageAccount ? {} : storageReuse ? existingStorage.properties.primaryEndpoints: newStorageAccount.properties.primaryEndpoints
+output primaryEndpoints object = !deployStorageAccount ? {} : newStorageAccount.properties.primaryEndpoints

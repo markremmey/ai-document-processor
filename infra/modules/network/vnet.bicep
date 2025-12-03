@@ -21,8 +21,6 @@ param bastionSubnetPrefix string = '10.0.1.128/26'
 param appServicePlanId string
 param appServicePlanName string
 param tags object = {}
-param vnetReuse bool
-param existingVnetResourceGroupName string
 
 // Parameters for NSG names
 param aiNsgName string = 'ai-nsg'
@@ -293,12 +291,7 @@ var allSubnets = (deployVPN) ? concat(subnets, [{
 }]) : subnets
 
 // Virtual Network and Subnets
-resource existingVnet 'Microsoft.Network/virtualNetworks@2024-05-01' existing = if (vnetReuse) {
-  scope: resourceGroup(existingVnetResourceGroupName)
-  name: vnetName
-}
-
-resource newVnet 'Microsoft.Network/virtualNetworks@2024-05-01' = if (!vnetReuse) {
+resource newVnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
   name: vnetName
   location: location
   tags: tags
@@ -312,11 +305,11 @@ resource newVnet 'Microsoft.Network/virtualNetworks@2024-05-01' = if (!vnetReuse
   }
 }
 
-output name string = vnetReuse ? existingVnet.name : newVnet.name
-output id string = vnetReuse ? existingVnet.id : newVnet.id
-output subnets array = vnetReuse ? existingVnet.properties.subnets : newVnet.properties.subnets
-output aiSubId string = vnetReuse ? resourceId(existingVnetResourceGroupName, 'Microsoft.Network/virtualNetworks/subnets', vnetName, aiSubnetName) : newVnet.properties.subnets[0].id
-output appServicesSubId string = vnetReuse ? resourceId(existingVnetResourceGroupName, 'Microsoft.Network/virtualNetworks/subnets', vnetName, appServicesSubnetName) : newVnet.properties.subnets[1].id
-output databaseSubId string = vnetReuse ? resourceId(existingVnetResourceGroupName, 'Microsoft.Network/virtualNetworks/subnets', vnetName, databaseSubnetName) : newVnet.properties.subnets[2].id
-output bastionSubId string = vnetReuse ? resourceId(existingVnetResourceGroupName, 'Microsoft.Network/virtualNetworks/subnets', vnetName, bastionSubnetName) : newVnet.properties.subnets[3].id
-output appIntSubId string = vnetReuse ? resourceId(existingVnetResourceGroupName, 'Microsoft.Network/virtualNetworks/subnets', vnetName, appIntSubnetName) : newVnet.properties.subnets[4].id
+output name string = newVnet.name
+output id string = newVnet.id
+output subnets array = newVnet.properties.subnets
+output aiSubId string = newVnet.properties.subnets[0].id
+output appServicesSubId string = newVnet.properties.subnets[1].id
+output databaseSubId string = newVnet.properties.subnets[2].id
+output bastionSubId string = newVnet.properties.subnets[3].id
+output appIntSubId string = newVnet.properties.subnets[4].id

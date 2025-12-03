@@ -33,32 +33,48 @@ param identities identityInfo[] = union([], [{
 @description('Location for the Static Web App and Azure Function App. Only the following locations are allowed: centralus, eastus2, westeurope, westus2, southeastasia')
 param location string
 
-@description('Location for the Azure AI Foundry account')
-@allowed([
-  'East US'
-  'East US 2'
-  'France Central'
-  'Germany West Central'
-  'Japan East'
-  'Korea Central'
-  'North Central US'
-  'Norway East'
-  'Poland Central'
-  'South Africa North'
-  'South Central US'
-  'South India'
-  'Southeast Asia'
-  'Spain Central'
-  'Sweden Central'
-  'Switzerland North'
-  'Switzerland West'
-  'UAE North'
-  'UK South'
-  'West Europe'
-  'West US'
-  'West US 3'
-])
-param aoaiLocation string
+// @description('Location for the Azure AI Foundry account')
+// @allowed([
+//   'East US'
+//   'East US 2'
+//   'France Central'
+//   'Germany West Central'
+//   'Japan East'
+//   'Korea Central'
+//   'North Central US'
+//   'Norway East'
+//   'Poland Central'
+//   'South Africa North'
+//   'South Central US'
+//   'South India'
+//   'Southeast Asia'
+//   'Spain Central'
+//   'Sweden Central'
+//   'Switzerland North'
+//   'Switzerland West'
+//   'UAE North'
+//   'UK South'
+//   'West Europe'
+//   'West US'
+//   'West US 3'
+// ])
+// param aoaiLocation string
+
+@description('Name of the Azure AI Foundry account to create or reference.')
+var aiFoundryAccountName string = '${abbrs.ai.aiFoundry}${suffix}'
+
+@description('Name of the AI Foundry project resource.')
+var aiFoundryProjectName string = '${abbrs.ai.aiFoundryProject}${suffix}'
+
+@description('Name of the Storage Account used by AI Foundry for blobs, queues, tables, and files.')
+var aiFoundryStorageAccountName string = replace('${abbrs.storage.storageAccount}${abbrs.ai.aiFoundry}${suffix}', '-', '')
+
+@description('Name of the Cognitive Search service provisioned for AI Foundry.')
+var aiFoundrySearchServiceName string = '${abbrs.ai.aiSearch}${abbrs.ai.aiFoundry}${suffix}'
+
+@description('Name of the Azure Cosmos DB account used by AI Foundry.')
+var aiFoundryCosmosDbName string = '${abbrs.databases.cosmosDBDatabase}${abbrs.ai.aiFoundry}${suffix}'
+
 
 @description('Network isolation? If yes it will create the private endpoints.')
 @allowed([false, true])
@@ -121,12 +137,9 @@ param vmImageOffer string = 'windows-11'
 @description('Image version (use latest unless you need a pinned build).')
 param vmImageVersion string = 'latest'
 
-// flag that indicates if we're reusing a vnet
-var _vnetReuse = _azureReuseConfig.vnetReuse
-
 @description('Virtual network name, you can leave as it is to generate a random name.')
 param vnetName string = ''
-var _vnetName = _azureReuseConfig.vnetReuse ? _azureReuseConfig.existingVnetName : !empty(vnetName) ? vnetName : '${abbrs.networking.virtualNetwork}ai-${suffix}'
+var _vnetName = !empty(vnetName) ? vnetName : '${abbrs.networking.virtualNetwork}ai-${suffix}'
 
 @description('Address space for the virtual network')
 param vnetAddress string = ''
@@ -154,7 +167,7 @@ var processingFunctionAppName = '${abbrs.compute.functionApp}processing-${suffix
 var storageAccountName = '${abbrs.storage.storageAccount}${suffix}data'
 var funcStorageName = '${abbrs.storage.storageAccount}${suffix}func'
 var keyVaultName = '${abbrs.security.keyVault}${suffix}'
-var aoaiName = '${abbrs.ai.openAIService}${suffix}'
+// var aoaiName = '${abbrs.ai.openAIService}${suffix}'
 var cosmosAccountName = '${abbrs.databases.cosmosDBDatabase}${suffix}'
 var aiMultiServicesName = '${abbrs.ai.aiMultiServices}${suffix}'
 var appInsightsName = '${abbrs.managementGovernance.applicationInsights}${suffix}'
@@ -180,9 +193,9 @@ param azureAiServicesPe string = ''
 var _azureAiServicesPe = !empty(azureAiServicesPe) ? azureAiServicesPe : '${abbrs.ai.aiServices}${abbrs.networking.privateEndpoint}${suffix}'
 
 
-@description('The name of the Azure AI Services Private Endpoint. If left empty, a random name will be generated.')
-param azureAiMultiServicesPe string = ''
-var _azureAiMultiServicesPe = !empty(azureAiMultiServicesPe) ? azureAiMultiServicesPe : '${abbrs.ai.aiMultiServices}${abbrs.networking.privateEndpoint}${suffix}'
+// @description('The name of the Azure AI Services Private Endpoint. If left empty, a random name will be generated.')
+// param azureAiMultiServicesPe string = ''
+// var _azureAiMultiServicesPe = !empty(azureAiMultiServicesPe) ? azureAiMultiServicesPe : '${abbrs.ai.aiMultiServices}${abbrs.networking.privateEndpoint}${suffix}'
 
 @description('The name of the Azure Storage Account Private Endpoint. If left empty, a random name will be generated.')
 param azureBlobStorageAccountPe string = ''
@@ -223,7 +236,7 @@ module logAnalyticsWorkspace './modules/management_governance/log-analytics-work
   }
 }
 
-module azureMonitorPrivateLinkScope './modules/security/private-link-scope.bicep' = if (_networkIsolation && !_vnetReuse) {
+module azureMonitorPrivateLinkScope './modules/security/private-link-scope.bicep' = if (_networkIsolation) {
   // // scope: ResourceGroup
   name: '${abbrs.networking.privateLink}${suffix}'
   params: {
@@ -235,7 +248,7 @@ module azureMonitorPrivateLinkScope './modules/security/private-link-scope.bicep
   }
 }
 
-module automationDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation && !_vnetReuse) {
+module automationDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation) {
   name: 'automation-dnzones'
   // // scope: ResourceGroup
   params: {
@@ -245,7 +258,7 @@ module automationDnsZone './modules/network/private-dns-zones.bicep' = if (_netw
   }
 }
 
-module odsInsightsDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation && !_vnetReuse) {
+module odsInsightsDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation) {
   name: 'odsinsights-dnzones'
   // // scope: ResourceGroup
   params: {
@@ -255,7 +268,7 @@ module odsInsightsDnsZone './modules/network/private-dns-zones.bicep' = if (_net
   }
 }
 
-module omsInsightsDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation && !_vnetReuse) {
+module omsInsightsDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation) {
   name: 'omsinsights-dnzones'
   // // scope: ResourceGroup
   params: {
@@ -265,7 +278,7 @@ module omsInsightsDnsZone './modules/network/private-dns-zones.bicep' = if (_net
   }
 }
 
-module azMonitorDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation && !_vnetReuse) {
+module azMonitorDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation) {
   name: 'azmonitor-dnzones'
   // // scope: ResourceGroup
   params: {
@@ -276,7 +289,7 @@ module azMonitorDnsZone './modules/network/private-dns-zones.bicep' = if (_netwo
 }
 
 var logAnalyticsPEName = '${abbrs.managementGovernance.logAnalyticsWorkspace}${abbrs.security.privateEndpoint}${suffix}'
-module logAnalyticsPe './modules/network/private-endpoint.bicep' = if (_networkIsolation && !_vnetReuse) {
+module logAnalyticsPe './modules/network/private-endpoint.bicep' = if (_networkIsolation) {
   name: logAnalyticsPEName
   // // scope: ResourceGroup
   params: {
@@ -297,9 +310,6 @@ module appInsights './modules/management_governance/application-insights.bicep' 
   params: {
     name: appInsightsName
     location: location
-    appInsightsReuse : false
-    logAnalyticsReuse: false
-    existingAppInsightsResourceGroupName : resourceGroup().name
     logAnalyticsWorkspaceId: logAnalyticsWorkspace.outputs.id
     suffix : suffix
     publicNetworkAccessForIngestion: _networkIsolation?'Disabled':'Enabled'
@@ -310,7 +320,7 @@ module appInsights './modules/management_governance/application-insights.bicep' 
 var secureAppSettings = [
   {
     name: 'OPENAI_API_KEY'
-    value: aoaiAccountModule.outputs.AOAI_API_KEY
+    // value: aoaiAccountModule.outputs.AOAI_API_KEY
   }
 ]
 
@@ -349,7 +359,7 @@ var appSettings = [
   }
   {
     name: 'OPENAI_API_BASE'
-    value: aoaiAccountModule.outputs.AOAI_ENDPOINT
+    // value: aoaiAccountModule.outputs.AOAI_ENDPOINT
   }
   {
     name: 'OPENAI_API_EMBEDDING_MODEL'
@@ -389,7 +399,7 @@ var appSettings = [
   }
 ]
 
-module vaultDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation && !_vnetReuse) {
+module vaultDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation) {
   // // scope : resourceGroup
   name: 'vault-dnzones'
   params: {
@@ -399,7 +409,7 @@ module vaultDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIs
   }
 }
 
-module keyvaultpe './modules/network/private-endpoint.bicep' = if (_networkIsolation && !_vnetReuse) {
+module keyvaultpe './modules/network/private-endpoint.bicep' = if (_networkIsolation) {
   // // scope : resourceGroup
   name: 'keyvaultpe'
   params: {
@@ -449,8 +459,6 @@ module keyVault './modules/security/key-vault.bicep' = {
     name: keyVaultName
     location: location
     //tenantId: tenantId
-    keyVaultReuse: _azureReuseConfig.keyVaultReuse
-    existingKeyVaultResourceGroupName: resourceGroupName
     secureAppSettings: secureAppSettings
     publicNetworkAccess: _networkIsolation?'Disabled':'Enabled'
     roleAssignments: concat(keyVaultSecretsUserIdentityAssignmentsAll, [])
@@ -528,7 +536,7 @@ module cosmosContributorUser './modules/rbac/cosmos-contributor.bicep' = {
   }
 }
 
-module aiservicesDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation && !_vnetReuse) {
+module aiservicesDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation) {
   // scope : resourceGroup
   name: 'aiservices-dnzones'
   params: {
@@ -538,35 +546,35 @@ module aiservicesDnsZone './modules/network/private-dns-zones.bicep' = if (_netw
   }
 }
 
-module openaiDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation && !_vnetReuse) {
-  name: 'openai-dnzones'
-  // scope: resourceGroup
-  params: {
-    dnsZoneName: 'privatelink.openai.azure.com'
-    tags: tags
-    virtualNetworkName: _networkIsolation?vnet.outputs.name:''
-  }
-}
+// module openaiDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation && !_vnetReuse) {
+//   name: 'openai-dnzones'
+//   // scope: resourceGroup
+//   params: {
+//     dnsZoneName: 'privatelink.openai.azure.com'
+//     tags: tags
+//     virtualNetworkName: _networkIsolation?vnet.outputs.name:''
+//   }
+// }
 
-module aiServicesPe './modules/network/private-endpoint.bicep' = if (_networkIsolation && !_vnetReuse) {
-  // scope : resourceGroup
-  name: 'aiServicesPe'
-  params: {
-    location: location
-    name: _azureAiServicesPe
-    tags: tags
-    subnetId: _networkIsolation?vnet.outputs.aiSubId:''
-    serviceId: aoaiAccountModule.outputs.id
-    groupIds: ['account']
-    dnsZoneId: _networkIsolation?openaiDnsZone.outputs.id:''
-  }
-  dependsOn: [
-    aoaiAccountModule
-  ]
-}
+// module aiServicesPe './modules/network/private-endpoint.bicep' = if (_networkIsolation && !_vnetReuse) {
+//   // scope : resourceGroup
+//   name: 'aiServicesPe'
+//   params: {
+//     location: location
+//     name: _azureAiServicesPe
+//     tags: tags
+//     subnetId: _networkIsolation?vnet.outputs.aiSubId:''
+//     serviceId: aoaiAccountModule.outputs.id
+//     groupIds: ['account']
+//     dnsZoneId: _networkIsolation?openaiDnsZone.outputs.id:''
+//   }
+//   dependsOn: [
+//     aoaiAccountModule
+//   ]
+// }
 
 // Cosmos DB Module
-module documentsDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation && !_vnetReuse) {
+module documentsDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation) {
   // scope : resourceGroup
   name: 'documents-dnzones'
   params: {
@@ -576,7 +584,7 @@ module documentsDnsZone './modules/network/private-dns-zones.bicep' = if (_netwo
   }
 }
 
-module cosmospe './modules/network/private-endpoint.bicep' = if (_networkIsolation && !_vnetReuse) {
+module cosmospe './modules/network/private-endpoint.bicep' = if (_networkIsolation) {
   // scope : resourceGroup
   name: 'cosmospe'
   params: {
@@ -601,10 +609,7 @@ module cosmos './modules/db/cosmos.bicep' = {
     containerName: promptsContainer
     configContainerName: configContainerName
     conversationContainerName: conversationHistoryContainerName
-    cosmosDbReuse: _azureReuseConfig.cosmosDbReuse
     datasourcesContainerName: configContainerName
-    existingCosmosDbAccountName: _azureReuseConfig.existingCosmosDbAccountName
-    existingCosmosDbResourceGroupName: _azureReuseConfig.existingCosmosDbResourceGroupName
     keyVaultName: keyVault.outputs.name
     publicNetworkAccess: _networkIsolation?'Disabled':'Enabled'
   }
@@ -612,39 +617,37 @@ module cosmos './modules/db/cosmos.bicep' = {
 
 
 // 2. OpenAI
-module aoaiAccountModule './modules/ai_ml/aoai-account.bicep' = {
-  // scope : resourceGroup
-  name: 'aoaiAccountModuleDeployment'
-  params: {
-    location: aoaiLocation
-    aoaiName: aoaiName
-    customSubDomainName: aoaiName
-    publicNetworkAccess: _networkIsolation?'Disabled':'Enabled'
-  }
-}
+// module aoaiAccountModule './modules/ai_ml/aoai-account.bicep' = {
+//   // scope : resourceGroup
+//   name: 'aoaiAccountModuleDeployment'
+//   params: {
+//     location: aoaiLocation
+//     aoaiName: aoaiName
+//     customSubDomainName: aoaiName
+//     publicNetworkAccess: _networkIsolation?'Disabled':'Enabled'
+//   }
+// }
 
-module aoaiModelDeploymentModule './modules/ai_ml/modelDeployment.bicep' = {
-  name: 'aoaiModelDeployment'
-  // scope: resourceGroup
-  params: {
-    aiServicesName: aoaiAccountModule.outputs.name
-    deploymentName: 'gpt-4o'
-    modelName: 'gpt-4o'
-  }
-  dependsOn: [
-    aoaiAccountModule
-  ]
-}
+// module aoaiModelDeploymentModule './modules/ai_ml/modelDeployment.bicep' = {
+//   name: 'aoaiModelDeployment'
+//   // scope: resourceGroup
+//   params: {
+//     aiServicesName: aoaiAccountModule.outputs.name
+//     deploymentName: 'gpt-4o'
+//     modelName: 'gpt-4o'
+//   }
+//   dependsOn: [
+//     aoaiAccountModule
+//   ]
+// }
 
-module vnet './modules/network/vnet.bicep' = if (_networkIsolation && !_vnetReuse) {
+module vnet './modules/network/vnet.bicep' = if (_networkIsolation) {
   // scope : resourceGroup
   name: 'virtual-network'
   params: {
     location: location
     vnetName: _vnetName
-    vnetReuse: _vnetReuse
     deployVPN: _deployVPN
-    existingVnetResourceGroupName: _azureReuseConfig.existingVnetResourceGroupName
     tags: tags
     vnetAddress: _vnetAddress
     appServicePlanId: hostingPlan.outputs.resourceId
@@ -652,7 +655,7 @@ module vnet './modules/network/vnet.bicep' = if (_networkIsolation && !_vnetReus
   }
 }
 
-module vpnGateway './modules/network/vnet-vpn-gateway.bicep' = if (_networkIsolation && !_vnetReuse && _deployVPN) {
+module vpnGateway './modules/network/vnet-vpn-gateway.bicep' = if (_networkIsolation && _deployVPN) {
   // scope : resourceGroup
   name: 'vpn-gateway'
   params: {
@@ -662,7 +665,7 @@ module vpnGateway './modules/network/vnet-vpn-gateway.bicep' = if (_networkIsola
   }
 }
 
-module appConfigDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation && !_vnetReuse) {
+module appConfigDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation) {
   // scope : resourceGroup
   name: 'appconfig-dnzones'
   //scope: resourceGroup
@@ -673,7 +676,7 @@ module appConfigDnsZone './modules/network/private-dns-zones.bicep' = if (_netwo
   }
 }
 
-module appConfigPe './modules/network/private-endpoint.bicep' = if (_networkIsolation && !_vnetReuse) {
+module appConfigPe './modules/network/private-endpoint.bicep' = if (_networkIsolation) {
   // scope : resourceGroup
   name: 'appConfigPe'
   params: {
@@ -722,7 +725,7 @@ module appConfig './modules/app_config/appconfig.bicep' = {
   }
 }
 
-module blobDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation && !_vnetReuse) {
+module blobDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation) {
   // scope : resourceGroup
   name: 'blob-dnzones'
   params: {
@@ -732,7 +735,7 @@ module blobDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIso
   }
 }
 
-module queueDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation && !_vnetReuse) {
+module queueDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation) {
   // scope : resourceGroup
   name: 'queue-dnzones'
   params: {
@@ -742,7 +745,7 @@ module queueDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIs
   }
 }
 
-module tableDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation && !_vnetReuse) {
+module tableDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation) {
   // scope : resourceGroup
   name: 'table-dnzones'
   params: {
@@ -752,7 +755,7 @@ module tableDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIs
   }
 }
 
-module fileDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation && !_vnetReuse) {
+module fileDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation) {
   // scope : resourceGroup
   name: 'file-dnzones'
   params: {
@@ -762,7 +765,7 @@ module fileDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIso
   }
 }
 
-module storagePe './modules/storage/storage-private-endpoints.bicep' = if (_networkIsolation && !_vnetReuse){
+module storagePe './modules/storage/storage-private-endpoints.bicep' = if (_networkIsolation){
   // scope : resourceGroup
   name: 'storage-pe'
   dependsOn: [
@@ -787,8 +790,6 @@ module storage './modules/storage/storage-account.bicep' = {
   params: {
     name: storageAccountName
     location: location
-    storageReuse: _azureReuseConfig.storageReuse
-    existingStorageResourceGroupName: _azureReuseConfig.existingStorageResourceGroupName
     tags: tags
     publicNetworkAccess: _networkIsolation?'Disabled':'Enabled'
     allowBlobPublicAccess: false // Disable anonymous access
@@ -807,7 +808,7 @@ module storage './modules/storage/storage-account.bicep' = {
       bypass: 'AzureServices'
       defaultAction: _networkIsolation?'Deny':'Allow'
       ipRules : []
-      virtualNetworkRules : (_networkIsolation && !_vnetReuse) ? [
+      virtualNetworkRules : _networkIsolation ? [
         {
           id: vnet.outputs.aiSubId
           action: 'Allow'
@@ -817,7 +818,7 @@ module storage './modules/storage/storage-account.bicep' = {
   }  
 }
 
-module procStoragePe './modules/storage/storage-private-endpoints.bicep' = if (_networkIsolation && !_vnetReuse){
+module procStoragePe './modules/storage/storage-private-endpoints.bicep' = if (_networkIsolation){
   // scope : resourceGroup
   name: 'proc-storage-pe'
   dependsOn: [
@@ -877,7 +878,7 @@ module procFuncStorage 'br/public:avm/res/storage/storage-account:0.25.0' = {
     networkAcls: {
       defaultAction:  _networkIsolation?'Deny':'Allow'
       bypass: 'AzureServices'
-      virtualNetworkRules: (_networkIsolation && !_vnetReuse) ? [
+      virtualNetworkRules: _networkIsolation ? [
         {
           id: vnet.outputs.aiSubId
           action: 'Allow'
@@ -919,7 +920,7 @@ module hostingPlan 'br/public:avm/res/web/serverfarm:0.1.1' = {
   }
 }
 
-module websitesDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation && !_vnetReuse) {
+module websitesDnsZone './modules/network/private-dns-zones.bicep' = if (_networkIsolation) {
   // scope : resourceGroup
   name: 'websites-dnszones'
   params: {
@@ -929,7 +930,7 @@ module websitesDnsZone './modules/network/private-dns-zones.bicep' = if (_networ
   }
 }
 
-module processingFunctionAppPe './modules/network/private-endpoint.bicep' = if (_networkIsolation && !_vnetReuse) {
+module processingFunctionAppPe './modules/network/private-endpoint.bicep' = if (_networkIsolation) {
   // scope : resourceGroup
   name: _processingfunctionAppPe
   params: {
@@ -1309,7 +1310,7 @@ module aiMultiServiceManagedIdentity './modules/security/managed-identity.bicep'
   }
 }
 
-module aiMultiServicesPe './modules/network/private-endpoint.bicep' = if (_networkIsolation && !_vnetReuse) {
+module aiMultiServicesPe './modules/network/private-endpoint.bicep' = if (_networkIsolation) {
   // scope : resourceGroup
   name: 'aiMultiServicesPe'
   params: {
@@ -1495,7 +1496,7 @@ resource cse 'Microsoft.Compute/virtualMachines/extensions@2024-11-01' = if (_de
 //       {
 //         roleDefinitionId: subscriptionResourceId(
 //           'Microsoft.Authorization/roleDefinitions',
-//           const.roles.ManagedIdentityOperator.guid
+//           roles.ManagedIdentityOperator.guid
 //         )
 //         #disable-next-line BCP318
 //         principalId: (_useUAI) ? testVmUAI.outputs.principalId : testVm.outputs.systemAssignedMIPrincipalId!
@@ -1515,7 +1516,7 @@ output FUNCTION_APP_NAME string = processingFunctionApp.outputs.name
 output AZURE_STORAGE_ACCOUNT string = storage.outputs.name
 // output FUNCTION_URL string = processingFunctionApp.outputs.uri
 output OPENAI_API_VERSION string = openaiApiVersion
-output OPENAI_API_BASE string = aoaiAccountModule.outputs.AOAI_ENDPOINT
+output OPENAI_API_BASE string = // aoaiAccountModule.outputs.AOAI_ENDPOINT
 output OPENAI_MODEL string = openaiModel
 output FUNCTIONS_WORKER_RUNTIME string = functionRuntime
 output AIMULTISERVICES_NAME string = aiMultiServices.outputs.aiMultiServicesName
@@ -1531,110 +1532,110 @@ output COSMOS_DB_DATABASE_NAME string = cosmos.outputs.databaseName
 output FUNCTION_STORAGE_ACCOUNT string = procFuncStorage.outputs.name
 
 // Resue details
-@description('Settings to define reusable resources.')
-var _azureReuseConfigDefaults = {
-  aoaiReuse: false
-  existingAoaiResourceGroupName: ''
-  existingAoaiName: ''
-  appInsightsReuse: false
-  existingAppInsightsResourceGroupName: ''
-  existingAppInsightsName: ''
-  appConfigReuse: false
-  existingAppConfigResourceGroupName: ''
-  existingAppConfigName: ''
-  logAnalyticsWorkspaceReuse: false  
-  existingLogAnalyticsWorkspaceResourceId: ''
-  appServicePlanReuse: false
-  existingAppServicePlanResourceGroupName: ''
-  existingAppServicePlanName: ''
-  aiSearchReuse: false
-  existingAiSearchResourceGroupName: ''
-  existingAiSearchName: ''
-  aiServicesReuse: false
-  existingAiServicesResourceGroupName: ''
-  existingAiServicesName: ''
-  cosmosDbReuse: false
-  existingCosmosDbResourceGroupName: ''
-  existingCosmosDbAccountName: ''
-  existingCosmosDbDatabaseName : ''
-  keyVaultReuse: false
-  existingKeyVaultResourceGroupName: ''
-  existingKeyVaultName: ''
-  storageReuse: false
-  existingStorageResourceGroupName: ''
-  existingStorageName: ''
-  vnetReuse: false
-  existingVnetResourceGroupName: ''
-  existingVnetName: ''
-  orchestratorFunctionAppReuse: false
-  existingOrchestratorFunctionAppResourceGroupName: ''
-  existingOrchestratorFunctionAppName: ''  
-  dataIngestionFunctionAppReuse: false
-  existingDataIngestionFunctionAppResourceGroupName: ''
-  existingDataIngestionFunctionAppName: ''  
-  appServiceReuse: false
-  existingAppServiceName: ''
-  existingAppServiceNameResourceGroupName: ''
-  orchestratorFunctionAppStorageReuse: false
-  existingOrchestratorFunctionAppStorageName: ''
-  existingOrchestratorFunctionAppStorageResourceGroupName: ''
-  dataIngestionFunctionAppStorageReuse: false
-  existingDataIngestionFunctionAppStorageName: ''
-  existingDataIngestionFunctionAppStorageResourceGroupName: ''  
-}
+// @description('Settings to define reusable resources.')
+// var _azureReuseConfigDefaults = {
+//   aoaiReuse: false
+//   existingAoaiResourceGroupName: ''
+//   existingAoaiName: ''
+//   appInsightsReuse: false
+//   existingAppInsightsResourceGroupName: ''
+//   existingAppInsightsName: ''
+//   appConfigReuse: false
+//   existingAppConfigResourceGroupName: ''
+//   existingAppConfigName: ''
+//   logAnalyticsWorkspaceReuse: false  
+//   existingLogAnalyticsWorkspaceResourceId: ''
+//   appServicePlanReuse: false
+//   existingAppServicePlanResourceGroupName: ''
+//   existingAppServicePlanName: ''
+//   aiSearchReuse: false
+//   existingAiSearchResourceGroupName: ''
+//   existingAiSearchName: ''
+//   aiServicesReuse: false
+//   existingAiServicesResourceGroupName: ''
+//   existingAiServicesName: ''
+//   cosmosDbReuse: false
+//   existingCosmosDbResourceGroupName: ''
+//   existingCosmosDbAccountName: ''
+//   existingCosmosDbDatabaseName : ''
+//   keyVaultReuse: false
+//   existingKeyVaultResourceGroupName: ''
+//   existingKeyVaultName: ''
+//   storageReuse: false
+//   existingStorageResourceGroupName: ''
+//   existingStorageName: ''
+//   vnetReuse: false
+//   existingVnetResourceGroupName: ''
+//   existingVnetName: ''
+//   orchestratorFunctionAppReuse: false
+//   existingOrchestratorFunctionAppResourceGroupName: ''
+//   existingOrchestratorFunctionAppName: ''  
+//   dataIngestionFunctionAppReuse: false
+//   existingDataIngestionFunctionAppResourceGroupName: ''
+//   existingDataIngestionFunctionAppName: ''  
+//   appServiceReuse: false
+//   existingAppServiceName: ''
+//   existingAppServiceNameResourceGroupName: ''
+//   orchestratorFunctionAppStorageReuse: false
+//   existingOrchestratorFunctionAppStorageName: ''
+//   existingOrchestratorFunctionAppStorageResourceGroupName: ''
+//   dataIngestionFunctionAppStorageReuse: false
+//   existingDataIngestionFunctionAppStorageName: ''
+//   existingDataIngestionFunctionAppStorageResourceGroupName: ''  
+// }
 
-param azureReuseConfig object = {} 
-var _azureReuseConfig = union(_azureReuseConfigDefaults, {
-    aoaiReuse: (empty(azureReuseConfig.aoaiReuse) ? _azureReuseConfigDefaults.aoaiReuse : toLower(azureReuseConfig.aoaiReuse) == 'true')
-    existingAoaiResourceGroupName: (empty(azureReuseConfig.existingAoaiResourceGroupName) ? _azureReuseConfigDefaults.existingAoaiResourceGroupName : azureReuseConfig.existingAoaiResourceGroupName)
-    existingAoaiName: (empty(azureReuseConfig.existingAoaiName) ? _azureReuseConfigDefaults.existingAoaiName : azureReuseConfig.existingAoaiName)
-    aiServicesReuse: (empty(azureReuseConfig.aiServicesReuse) ? _azureReuseConfigDefaults.aiServicesReuse : toLower(azureReuseConfig.aiServicesReuse) == 'true')
-    existingAiServicesResourceGroupName: (empty(azureReuseConfig.existingAiServicesResourceGroupName) ? _azureReuseConfigDefaults.existingAiServicesResourceGroupName : azureReuseConfig.existingAiServicesResourceGroupName)
-    existingAiServicesName: (empty(azureReuseConfig.existingAiServicesName) ? _azureReuseConfigDefaults.existingAiServicesName : azureReuseConfig.existingAiServicesName)
-    //appConfigReuse: (empty(azureReuseConfig.appConfigReuse) ? _azureReuseConfigDefaults.appConfigReuse : toLower(azureReuseConfig.appConfigReuse) == 'true')
-    //existingAppConfigResourceGroupName: (empty(azureReuseConfig.existingAppConfigResourceGroupName) ? _azureReuseConfigDefaults.existingAppConfigResourceGroupName : azureReuseConfig.existingAppConfigResourceGroupName)
-    //existingAppConfigName: (empty(azureReuseConfig.existingAppConfigName) ? _azureReuseConfigDefaults.existingAppConfigName : azureReuseConfig.existingAppConfigName)
-    appConfigReuse: false
-    existingAppConfigResourceGroupName: ''
-    existingAppConfigName: ''
-    appInsightsReuse: (empty(azureReuseConfig.appInsightsReuse) ? _azureReuseConfigDefaults.appInsightsReuse : toLower(azureReuseConfig.appInsightsReuse) == 'true')
-    existingAppInsightsResourceGroupName: (empty(azureReuseConfig.existingAppInsightsResourceGroupName) ? _azureReuseConfigDefaults.existingAppInsightsResourceGroupName : azureReuseConfig.existingAppInsightsResourceGroupName)
-    existingAppInsightsName: (empty(azureReuseConfig.existingAppInsightsName) ? _azureReuseConfigDefaults.existingAppInsightsName : azureReuseConfig.existingAppInsightsName)
-    logAnalyticsWorkspaceReuse: (empty(azureReuseConfig.logAnalyticsWorkspaceReuse) ? _azureReuseConfigDefaults.logAnalyticsWorkspaceReuse : toLower(azureReuseConfig.logAnalyticsWorkspaceReuse) == 'true')
-    existingLogAnalyticsWorkspaceResourceId: (empty(azureReuseConfig.existingLogAnalyticsWorkspaceResourceId) ? _azureReuseConfigDefaults.existingLogAnalyticsWorkspaceResourceId : azureReuseConfig.existingLogAnalyticsWorkspaceResourceId)
-    appServicePlanReuse: (empty(azureReuseConfig.appServicePlanReuse) ? _azureReuseConfigDefaults.appServicePlanReuse : toLower(azureReuseConfig.appServicePlanReuse) == 'true')
-    existingAppServicePlanResourceGroupName: (empty(azureReuseConfig.existingAppServicePlanResourceGroupName) ? _azureReuseConfigDefaults.existingAppServicePlanResourceGroupName : azureReuseConfig.existingAppServicePlanResourceGroupName)
-    existingAppServicePlanName: (empty(azureReuseConfig.existingAppServicePlanName) ? _azureReuseConfigDefaults.existingAppServicePlanName : azureReuseConfig.existingAppServicePlanName)
-    aiSearchReuse: (empty(azureReuseConfig.aiSearchReuse) ? _azureReuseConfigDefaults.aiSearchReuse : toLower(azureReuseConfig.aiSearchReuse) == 'true')
-    existingAiSearchResourceGroupName: (empty(azureReuseConfig.existingAiSearchResourceGroupName) ? _azureReuseConfigDefaults.existingAiSearchResourceGroupName : azureReuseConfig.existingAiSearchResourceGroupName)
-    existingAiSearchName: (empty(azureReuseConfig.existingAiSearchName) ? _azureReuseConfigDefaults.existingAiSearchName : azureReuseConfig.existingAiSearchName)
-    cosmosDbReuse: (empty(azureReuseConfig.cosmosDbReuse) ? _azureReuseConfigDefaults.cosmosDbReuse : toLower(azureReuseConfig.cosmosDbReuse) == 'true')
-    existingCosmosDbResourceGroupName: (empty(azureReuseConfig.existingCosmosDbResourceGroupName) ? _azureReuseConfigDefaults.existingCosmosDbResourceGroupName : azureReuseConfig.existingCosmosDbResourceGroupName)
-    existingCosmosDbAccountName: (empty(azureReuseConfig.existingCosmosDbAccountName) ? _azureReuseConfigDefaults.existingCosmosDbAccountName : azureReuseConfig.existingCosmosDbAccountName)
-    existingCosmosDbDatabaseName: (empty(azureReuseConfig.existingCosmosDbDatabaseName) ? _azureReuseConfigDefaults.existingCosmosDbDatabaseName : azureReuseConfig.existingCosmosDbDatabaseName)
-    keyVaultReuse: (empty(azureReuseConfig.keyVaultReuse) ? _azureReuseConfigDefaults.keyVaultReuse : toLower(azureReuseConfig.keyVaultReuse) == 'true')
-    existingKeyVaultResourceGroupName: (empty(azureReuseConfig.existingKeyVaultResourceGroupName) ? _azureReuseConfigDefaults.existingKeyVaultResourceGroupName : azureReuseConfig.existingKeyVaultResourceGroupName)
-    existingKeyVaultName: (empty(azureReuseConfig.existingKeyVaultName) ? _azureReuseConfigDefaults.existingKeyVaultName : azureReuseConfig.existingKeyVaultName)
-    storageReuse: (empty(azureReuseConfig.storageReuse) ? _azureReuseConfigDefaults.storageReuse : toLower(azureReuseConfig.storageReuse) == 'true')
-    existingStorageResourceGroupName: (empty(azureReuseConfig.existingStorageResourceGroupName) ? _azureReuseConfigDefaults.existingStorageResourceGroupName : azureReuseConfig.existingStorageResourceGroupName)
-    existingStorageName: (empty(azureReuseConfig.existingStorageName) ? _azureReuseConfigDefaults.existingStorageName : azureReuseConfig.existingStorageName)
-    vnetReuse: (empty(azureReuseConfig.vnetReuse) ? _azureReuseConfigDefaults.vnetReuse : toLower(azureReuseConfig.vnetReuse) == 'true')
-    existingVnetResourceGroupName: (empty(azureReuseConfig.existingVnetResourceGroupName) ? _azureReuseConfigDefaults.existingVnetResourceGroupName : azureReuseConfig.existingVnetResourceGroupName)
-    existingVnetName: (empty(azureReuseConfig.existingVnetName) ? _azureReuseConfigDefaults.existingVnetName : azureReuseConfig.existingVnetName)
-    orchestratorFunctionAppReuse: (empty(azureReuseConfig.orchestratorFunctionAppReuse) ? _azureReuseConfigDefaults.orchestratorFunctionAppReuse: toLower(azureReuseConfig.orchestratorFunctionAppReuse) == 'true')
-    existingOrchestratorFunctionAppResourceGroupName: (empty(azureReuseConfig.existingOrchestratorFunctionAppResourceGroupName) ? _azureReuseConfigDefaults.existingOrchestratorFunctionAppResourceGroupName : azureReuseConfig.existingOrchestratorFunctionAppResourceGroupName)
-    existingOrchestratorFunctionAppName: (empty(azureReuseConfig.existingOrchestratorFunctionAppName) ? _azureReuseConfigDefaults.existingOrchestratorFunctionAppName : azureReuseConfig.existingOrchestratorFunctionAppName)
-    dataIngestionFunctionAppReuse: (empty(azureReuseConfig.dataIngestionFunctionAppReuse) ? _azureReuseConfigDefaults.dataIngestionFunctionAppReuse : toLower(azureReuseConfig.dataIngestionFunctionAppReuse) == 'true')
-    existingDataIngestionFunctionAppResourceGroupName: (empty(azureReuseConfig.existingDataIngestionFunctionAppResourceGroupName) ? _azureReuseConfigDefaults.existingDataIngestionFunctionAppResourceGroupName : azureReuseConfig.existingDataIngestionFunctionAppResourceGroupName)
-    existingDataIngestionFunctionAppName: (empty(azureReuseConfig.existingDataIngestionFunctionAppName) ? _azureReuseConfigDefaults.existingDataIngestionFunctionAppName : azureReuseConfig.existingDataIngestionFunctionAppName)
-    appServiceReuse: (empty(azureReuseConfig.appServiceReuse) ? _azureReuseConfigDefaults.appServiceReuse : toLower(azureReuseConfig.appServiceReuse) == 'true')
-    existingAppServiceName: (empty(azureReuseConfig.existingAppServiceName) ? _azureReuseConfigDefaults.existingAppServiceName : azureReuseConfig.existingAppServiceName)
-    existingAppServiceNameResourceGroupName: (empty(azureReuseConfig.existingAppServiceNameResourceGroupName) ? _azureReuseConfigDefaults.existingAppServiceNameResourceGroupName : azureReuseConfig.existingAppServiceNameResourceGroupName)
-    orchestratorFunctionAppStorageReuse: (empty(azureReuseConfig.orchestratorFunctionAppStorageReuse) ? _azureReuseConfigDefaults.orchestratorFunctionAppStorageReuse : toLower(azureReuseConfig.orchestratorFunctionAppStorageReuse) == 'true')
-    existingOrchestratorFunctionAppStorageName: (empty(azureReuseConfig.existingOrchestratorFunctionAppStorageName) ? _azureReuseConfigDefaults.existingOrchestratorFunctionAppStorageName : azureReuseConfig.existingOrchestratorFunctionAppStorageName)
-    existingOrchestratorFunctionAppStorageResourceGroupName: (empty(azureReuseConfig.existingOrchestratorFunctionAppStorageResourceGroupName) ? _azureReuseConfigDefaults.existingOrchestratorFunctionAppStorageResourceGroupName : azureReuseConfig.existingOrchestratorFunctionAppStorageResourceGroupName)
-    dataIngestionFunctionAppStorageReuse: (empty(azureReuseConfig.dataIngestionFunctionAppStorageReuse) ? _azureReuseConfigDefaults.dataIngestionFunctionAppStorageReuse : toLower(azureReuseConfig.dataIngestionFunctionAppStorageReuse) == 'true')
-    existingDataIngestionFunctionAppStorageName: (empty(azureReuseConfig.existingDataIngestionFunctionAppStorageName) ? _azureReuseConfigDefaults.existingDataIngestionFunctionAppStorageName : azureReuseConfig.existingDataIngestionFunctionAppStorageName)
-    existingDataIngestionFunctionAppStorageResourceGroupName: (empty(azureReuseConfig.existingDataIngestionFunctionAppStorageResourceGroupName) ? _azureReuseConfigDefaults.existingDataIngestionFunctionAppStorageResourceGroupName : azureReuseConfig.existingDataIngestionFunctionAppStorageResourceGroupName)
-  }
-)
+// param azureReuseConfig object = {} 
+// var _azureReuseConfig = union(_azureReuseConfigDefaults, {
+//     aoaiReuse: (empty(azureReuseConfig.aoaiReuse) ? _azureReuseConfigDefaults.aoaiReuse : toLower(azureReuseConfig.aoaiReuse) == 'true')
+//     existingAoaiResourceGroupName: (empty(azureReuseConfig.existingAoaiResourceGroupName) ? _azureReuseConfigDefaults.existingAoaiResourceGroupName : azureReuseConfig.existingAoaiResourceGroupName)
+//     existingAoaiName: (empty(azureReuseConfig.existingAoaiName) ? _azureReuseConfigDefaults.existingAoaiName : azureReuseConfig.existingAoaiName)
+//     aiServicesReuse: (empty(azureReuseConfig.aiServicesReuse) ? _azureReuseConfigDefaults.aiServicesReuse : toLower(azureReuseConfig.aiServicesReuse) == 'true')
+//     existingAiServicesResourceGroupName: (empty(azureReuseConfig.existingAiServicesResourceGroupName) ? _azureReuseConfigDefaults.existingAiServicesResourceGroupName : azureReuseConfig.existingAiServicesResourceGroupName)
+//     existingAiServicesName: (empty(azureReuseConfig.existingAiServicesName) ? _azureReuseConfigDefaults.existingAiServicesName : azureReuseConfig.existingAiServicesName)
+//     //appConfigReuse: (empty(azureReuseConfig.appConfigReuse) ? _azureReuseConfigDefaults.appConfigReuse : toLower(azureReuseConfig.appConfigReuse) == 'true')
+//     //existingAppConfigResourceGroupName: (empty(azureReuseConfig.existingAppConfigResourceGroupName) ? _azureReuseConfigDefaults.existingAppConfigResourceGroupName : azureReuseConfig.existingAppConfigResourceGroupName)
+//     //existingAppConfigName: (empty(azureReuseConfig.existingAppConfigName) ? _azureReuseConfigDefaults.existingAppConfigName : azureReuseConfig.existingAppConfigName)
+//     appConfigReuse: false
+//     existingAppConfigResourceGroupName: ''
+//     existingAppConfigName: ''
+//     appInsightsReuse: (empty(azureReuseConfig.appInsightsReuse) ? _azureReuseConfigDefaults.appInsightsReuse : toLower(azureReuseConfig.appInsightsReuse) == 'true')
+//     existingAppInsightsResourceGroupName: (empty(azureReuseConfig.existingAppInsightsResourceGroupName) ? _azureReuseConfigDefaults.existingAppInsightsResourceGroupName : azureReuseConfig.existingAppInsightsResourceGroupName)
+//     existingAppInsightsName: (empty(azureReuseConfig.existingAppInsightsName) ? _azureReuseConfigDefaults.existingAppInsightsName : azureReuseConfig.existingAppInsightsName)
+//     logAnalyticsWorkspaceReuse: (empty(azureReuseConfig.logAnalyticsWorkspaceReuse) ? _azureReuseConfigDefaults.logAnalyticsWorkspaceReuse : toLower(azureReuseConfig.logAnalyticsWorkspaceReuse) == 'true')
+//     existingLogAnalyticsWorkspaceResourceId: (empty(azureReuseConfig.existingLogAnalyticsWorkspaceResourceId) ? _azureReuseConfigDefaults.existingLogAnalyticsWorkspaceResourceId : azureReuseConfig.existingLogAnalyticsWorkspaceResourceId)
+//     appServicePlanReuse: (empty(azureReuseConfig.appServicePlanReuse) ? _azureReuseConfigDefaults.appServicePlanReuse : toLower(azureReuseConfig.appServicePlanReuse) == 'true')
+//     existingAppServicePlanResourceGroupName: (empty(azureReuseConfig.existingAppServicePlanResourceGroupName) ? _azureReuseConfigDefaults.existingAppServicePlanResourceGroupName : azureReuseConfig.existingAppServicePlanResourceGroupName)
+//     existingAppServicePlanName: (empty(azureReuseConfig.existingAppServicePlanName) ? _azureReuseConfigDefaults.existingAppServicePlanName : azureReuseConfig.existingAppServicePlanName)
+//     aiSearchReuse: (empty(azureReuseConfig.aiSearchReuse) ? _azureReuseConfigDefaults.aiSearchReuse : toLower(azureReuseConfig.aiSearchReuse) == 'true')
+//     existingAiSearchResourceGroupName: (empty(azureReuseConfig.existingAiSearchResourceGroupName) ? _azureReuseConfigDefaults.existingAiSearchResourceGroupName : azureReuseConfig.existingAiSearchResourceGroupName)
+//     existingAiSearchName: (empty(azureReuseConfig.existingAiSearchName) ? _azureReuseConfigDefaults.existingAiSearchName : azureReuseConfig.existingAiSearchName)
+//     cosmosDbReuse: (empty(azureReuseConfig.cosmosDbReuse) ? _azureReuseConfigDefaults.cosmosDbReuse : toLower(azureReuseConfig.cosmosDbReuse) == 'true')
+//     existingCosmosDbResourceGroupName: (empty(azureReuseConfig.existingCosmosDbResourceGroupName) ? _azureReuseConfigDefaults.existingCosmosDbResourceGroupName : azureReuseConfig.existingCosmosDbResourceGroupName)
+//     existingCosmosDbAccountName: (empty(azureReuseConfig.existingCosmosDbAccountName) ? _azureReuseConfigDefaults.existingCosmosDbAccountName : azureReuseConfig.existingCosmosDbAccountName)
+//     existingCosmosDbDatabaseName: (empty(azureReuseConfig.existingCosmosDbDatabaseName) ? _azureReuseConfigDefaults.existingCosmosDbDatabaseName : azureReuseConfig.existingCosmosDbDatabaseName)
+//     keyVaultReuse: (empty(azureReuseConfig.keyVaultReuse) ? _azureReuseConfigDefaults.keyVaultReuse : toLower(azureReuseConfig.keyVaultReuse) == 'true')
+//     existingKeyVaultResourceGroupName: (empty(azureReuseConfig.existingKeyVaultResourceGroupName) ? _azureReuseConfigDefaults.existingKeyVaultResourceGroupName : azureReuseConfig.existingKeyVaultResourceGroupName)
+//     existingKeyVaultName: (empty(azureReuseConfig.existingKeyVaultName) ? _azureReuseConfigDefaults.existingKeyVaultName : azureReuseConfig.existingKeyVaultName)
+//     storageReuse: (empty(azureReuseConfig.storageReuse) ? _azureReuseConfigDefaults.storageReuse : toLower(azureReuseConfig.storageReuse) == 'true')
+//     existingStorageResourceGroupName: (empty(azureReuseConfig.existingStorageResourceGroupName) ? _azureReuseConfigDefaults.existingStorageResourceGroupName : azureReuseConfig.existingStorageResourceGroupName)
+//     existingStorageName: (empty(azureReuseConfig.existingStorageName) ? _azureReuseConfigDefaults.existingStorageName : azureReuseConfig.existingStorageName)
+//     vnetReuse: (empty(azureReuseConfig.vnetReuse) ? _azureReuseConfigDefaults.vnetReuse : toLower(azureReuseConfig.vnetReuse) == 'true')
+//     existingVnetResourceGroupName: (empty(azureReuseConfig.existingVnetResourceGroupName) ? _azureReuseConfigDefaults.existingVnetResourceGroupName : azureReuseConfig.existingVnetResourceGroupName)
+//     existingVnetName: (empty(azureReuseConfig.existingVnetName) ? _azureReuseConfigDefaults.existingVnetName : azureReuseConfig.existingVnetName)
+//     orchestratorFunctionAppReuse: (empty(azureReuseConfig.orchestratorFunctionAppReuse) ? _azureReuseConfigDefaults.orchestratorFunctionAppReuse: toLower(azureReuseConfig.orchestratorFunctionAppReuse) == 'true')
+//     existingOrchestratorFunctionAppResourceGroupName: (empty(azureReuseConfig.existingOrchestratorFunctionAppResourceGroupName) ? _azureReuseConfigDefaults.existingOrchestratorFunctionAppResourceGroupName : azureReuseConfig.existingOrchestratorFunctionAppResourceGroupName)
+//     existingOrchestratorFunctionAppName: (empty(azureReuseConfig.existingOrchestratorFunctionAppName) ? _azureReuseConfigDefaults.existingOrchestratorFunctionAppName : azureReuseConfig.existingOrchestratorFunctionAppName)
+//     dataIngestionFunctionAppReuse: (empty(azureReuseConfig.dataIngestionFunctionAppReuse) ? _azureReuseConfigDefaults.dataIngestionFunctionAppReuse : toLower(azureReuseConfig.dataIngestionFunctionAppReuse) == 'true')
+//     existingDataIngestionFunctionAppResourceGroupName: (empty(azureReuseConfig.existingDataIngestionFunctionAppResourceGroupName) ? _azureReuseConfigDefaults.existingDataIngestionFunctionAppResourceGroupName : azureReuseConfig.existingDataIngestionFunctionAppResourceGroupName)
+//     existingDataIngestionFunctionAppName: (empty(azureReuseConfig.existingDataIngestionFunctionAppName) ? _azureReuseConfigDefaults.existingDataIngestionFunctionAppName : azureReuseConfig.existingDataIngestionFunctionAppName)
+//     appServiceReuse: (empty(azureReuseConfig.appServiceReuse) ? _azureReuseConfigDefaults.appServiceReuse : toLower(azureReuseConfig.appServiceReuse) == 'true')
+//     existingAppServiceName: (empty(azureReuseConfig.existingAppServiceName) ? _azureReuseConfigDefaults.existingAppServiceName : azureReuseConfig.existingAppServiceName)
+//     existingAppServiceNameResourceGroupName: (empty(azureReuseConfig.existingAppServiceNameResourceGroupName) ? _azureReuseConfigDefaults.existingAppServiceNameResourceGroupName : azureReuseConfig.existingAppServiceNameResourceGroupName)
+//     orchestratorFunctionAppStorageReuse: (empty(azureReuseConfig.orchestratorFunctionAppStorageReuse) ? _azureReuseConfigDefaults.orchestratorFunctionAppStorageReuse : toLower(azureReuseConfig.orchestratorFunctionAppStorageReuse) == 'true')
+//     existingOrchestratorFunctionAppStorageName: (empty(azureReuseConfig.existingOrchestratorFunctionAppStorageName) ? _azureReuseConfigDefaults.existingOrchestratorFunctionAppStorageName : azureReuseConfig.existingOrchestratorFunctionAppStorageName)
+//     existingOrchestratorFunctionAppStorageResourceGroupName: (empty(azureReuseConfig.existingOrchestratorFunctionAppStorageResourceGroupName) ? _azureReuseConfigDefaults.existingOrchestratorFunctionAppStorageResourceGroupName : azureReuseConfig.existingOrchestratorFunctionAppStorageResourceGroupName)
+//     dataIngestionFunctionAppStorageReuse: (empty(azureReuseConfig.dataIngestionFunctionAppStorageReuse) ? _azureReuseConfigDefaults.dataIngestionFunctionAppStorageReuse : toLower(azureReuseConfig.dataIngestionFunctionAppStorageReuse) == 'true')
+//     existingDataIngestionFunctionAppStorageName: (empty(azureReuseConfig.existingDataIngestionFunctionAppStorageName) ? _azureReuseConfigDefaults.existingDataIngestionFunctionAppStorageName : azureReuseConfig.existingDataIngestionFunctionAppStorageName)
+//     existingDataIngestionFunctionAppStorageResourceGroupName: (empty(azureReuseConfig.existingDataIngestionFunctionAppStorageResourceGroupName) ? _azureReuseConfigDefaults.existingDataIngestionFunctionAppStorageResourceGroupName : azureReuseConfig.existingDataIngestionFunctionAppStorageResourceGroupName)
+//   }
+// )

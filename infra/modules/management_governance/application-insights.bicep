@@ -5,10 +5,6 @@ param location string = resourceGroup().location
 @description('Tags for the resource.')
 param tags object = {}
 
-param appInsightsReuse bool
-param logAnalyticsReuse bool
-param existingAppInsightsResourceGroupName string
-
 param publicNetworkAccessForIngestion string = 'Enabled'
 param publicNetworkAccessForQuery string = 'Enabled'
 
@@ -19,11 +15,7 @@ param logAnalyticsWorkspaceId string
 
 var abbrs = loadJsonContent('../../abbreviations.json')
 
-resource existinglogAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
-  name: '${abbrs.managementGovernance.logAnalyticsWorkspace}${suffix}'
-}
-
-resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = if ( !appInsightsReuse && empty(logAnalyticsWorkspaceId) ) {
+resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = if ( empty(logAnalyticsWorkspaceId) ) {
   name: '${abbrs.managementGovernance.logAnalyticsWorkspace}${suffix}'
   location: location
   properties: {
@@ -34,12 +26,6 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09
   }
 }
 
-// If reusing an existing App Insights resource, reference it (assumed to already be workspace‐based)
-resource existingApplicationInsights 'Microsoft.Insights/components@2020-02-02' existing = if (appInsightsReuse) {
-  scope: resourceGroup(existingAppInsightsResourceGroupName)
-  name: name
-}
-
 resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
   name: name
   location: location
@@ -47,17 +33,17 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
   kind: 'web'
   properties: {
     Application_Type: 'web'
-    WorkspaceResourceId: appInsightsReuse ? existinglogAnalyticsWorkspace.id : logAnalyticsWorkspace.id
+    WorkspaceResourceId: logAnalyticsWorkspace.id
     publicNetworkAccessForIngestion: publicNetworkAccessForIngestion
     publicNetworkAccessForQuery: publicNetworkAccessForQuery
   }
 }
 
 @description('ID for the deployed Application Insights resource.')
-output id string = appInsightsReuse ? existingApplicationInsights.id : applicationInsights.id
+output id string = applicationInsights.id
 @description('Name for the deployed Application Insights resource.')
-output name string = appInsightsReuse ? existingApplicationInsights.name : applicationInsights.name
+output name string = applicationInsights.name
 @description('Instrumentation Key for the deployed Application Insights resource.')
-output instrumentationKey string = appInsightsReuse ? existingApplicationInsights.properties.InstrumentationKey : applicationInsights.properties.InstrumentationKey
+output instrumentationKey string = applicationInsights.properties.InstrumentationKey
 @description('Connection string for the deployed Application Insights resource.')
-output connectionString string = appInsightsReuse ? existingApplicationInsights.properties.ConnectionString : applicationInsights.properties.ConnectionString
+output connectionString string = applicationInsights.properties.ConnectionString

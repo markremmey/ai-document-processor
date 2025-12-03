@@ -7,10 +7,6 @@ param publicNetworkAccess string = 'Disabled'
 @description('Location for the Cosmos DB account.')
 param location string = resourceGroup().location
 
-param cosmosDbReuse bool
-param existingCosmosDbResourceGroupName string
-param existingCosmosDbAccountName string
-
 param deployCosmosDb bool = true
 
 param conversationContainerName string
@@ -92,12 +88,7 @@ var locations = [
   }
 ]
 
-resource existingAccount 'Microsoft.DocumentDB/databaseAccounts@2024-12-01-preview' existing  = if (cosmosDbReuse && deployCosmosDb) {
-  scope: resourceGroup(existingCosmosDbResourceGroupName)
-  name: existingCosmosDbAccountName
-}
-
-resource newAccount 'Microsoft.DocumentDB/databaseAccounts@2024-12-01-preview' = if (!cosmosDbReuse && deployCosmosDb) {
+resource newAccount 'Microsoft.DocumentDB/databaseAccounts@2024-12-01-preview' = if (deployCosmosDb) {
   name: toLower(accountName)
   kind: 'GlobalDocumentDB'
   location: location
@@ -112,7 +103,7 @@ resource newAccount 'Microsoft.DocumentDB/databaseAccounts@2024-12-01-preview' =
   }
 }
 
-resource database 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-12-01-preview' = if (!cosmosDbReuse && deployCosmosDb) {
+resource database 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-12-01-preview' = if (deployCosmosDb) {
   parent: newAccount
   name: databaseName
   properties: {
@@ -122,7 +113,7 @@ resource database 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-12-01
   }
 }
 
-resource conversationsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-12-01-preview' = if (!cosmosDbReuse && deployCosmosDb) {
+resource conversationsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-12-01-preview' = if (deployCosmosDb) {
   parent: database
   name: conversationContainerName
   properties: {
@@ -153,7 +144,7 @@ resource conversationsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDataba
   }
 }
 
-resource modelsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-12-01-preview' = if (!cosmosDbReuse && deployCosmosDb) {
+resource modelsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-12-01-preview' = if (deployCosmosDb) {
   parent: database
   name: datasourcesContainerName
   properties: {
@@ -194,15 +185,15 @@ resource keyVaultSecret 'Microsoft.KeyVault/vaults/secrets@2024-12-01-preview' =
       nbf: 0
     }
     contentType: 'string'
-    value: !deployCosmosDb ? '' : cosmosDbReuse ? existingAccount.listKeys().primaryMasterKey : newAccount.listKeys().primaryMasterKey
+    value: !deployCosmosDb ? '' : newAccount.listKeys().primaryMasterKey
   }
 }
 
 
-output id string =  !deployCosmosDb ? '' : cosmosDbReuse ? existingAccount.id : newAccount.id
+output id string =  !deployCosmosDb ? '' : newAccount.id
 output resourceGroupName string = resourceGroup().name
-output name string =  !deployCosmosDb ? '' : cosmosDbReuse ? existingAccount.name : newAccount.name
-output cosmosResourceId string = !deployCosmosDb ? '' : cosmosDbReuse ? existingAccount.id : newAccount.id
-output accountName string = !deployCosmosDb ? '' : cosmosDbReuse ? existingAccount.name : newAccount.name
+output name string =  !deployCosmosDb ? '' : newAccount.name
+output cosmosResourceId string = !deployCosmosDb ? '' : newAccount.id
+output accountName string = !deployCosmosDb ? '' : newAccount.name
 output databaseName string = database.name
 output containerName string = conversationsContainer.name

@@ -1,9 +1,11 @@
 {
-  "ai": {
+  "ai": { 
+    "aiFoundry": "aif-",
+    "aiFoundryProject": "aifp-",
     "aiSearch": "srch-",
     "aiServices": "aisa-",
-    "aiMultiServices": "aimsa-",
     "aiVideoIndexer": "avi-",
+    "bing" : "bing-",
     "machineLearningWorkspace": "mlw-",
     "openAIService": "oai-",
     "botService": "bot-",
@@ -55,7 +57,7 @@
     "timeSeriesInsightsEnvironment": "tsi-"
   },
   "configuration" : {
-    "appConfiguration": "appconfig-"
+    "appConfiguration": "appcs-"
   },
   "compute": {
     "appServiceEnvironment": "ase-",
@@ -138,6 +140,7 @@
   "managementGovernance": {
     "automationAccount": "aa-",
     "applicationInsights": "appi-",
+    "grafana" : "graf-",
     "monitorActionGroup": "ag-",
     "monitorDataCollectionRules": "dcr-",
     "monitorAlertProcessingRule": "apr-",
@@ -185,6 +188,7 @@
     "networkSecurityGroupSecurityRules": "nsgsr-",
     "networkWatcher": "nw-",
     "privateLink": "pl-",
+    "privateLinkScope": "pls-",
     "privateEndpoint": "pep-",
     "publicIPAddress": "pip-",
     "publicIPAddressPrefix": "ippre-",
