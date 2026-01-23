@@ -1,6 +1,7 @@
 import os
 import logging
 from azure.identity import DefaultAzureCredential
+from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
 from azure.appconfiguration.provider import (
     AzureAppConfigurationKeyVaultOptions,
     load
@@ -143,3 +144,31 @@ class Configuration:
     def read_env_boolean(self, var_name, default=False):
         value = self.get_value(var_name, str(default)).strip().lower()
         return value in ['true', '1', 'yes']
+
+    def get_async_credential(self) -> AsyncDefaultAzureCredential:
+        """
+        Returns an async Azure credential with the same configuration as the sync credential.
+        Use this for async operations like the Azure AI Agent Framework.
+        """
+        if os.environ.get("AZURE_FUNCTIONS_ENVIRONMENT") == "Development":
+            return AsyncDefaultAzureCredential(
+                additionally_allowed_tenants=self.tenant_id,
+                exclude_environment_credential=True,
+                exclude_managed_identity_credential=True,
+                exclude_cli_credential=False,
+                exclude_powershell_credential=False,
+                exclude_shared_token_cache_credential=True,
+                exclude_developer_cli_credential=False,
+                exclude_interactive_browser_credential=True
+            )
+        else:
+            return AsyncDefaultAzureCredential(
+                additionally_allowed_tenants=self.tenant_id,
+                exclude_environment_credential=True,
+                exclude_managed_identity_credential=False,
+                exclude_cli_credential=True,
+                exclude_powershell_credential=True,
+                exclude_shared_token_cache_credential=True,
+                exclude_developer_cli_credential=True,
+                exclude_interactive_browser_credential=True
+            )

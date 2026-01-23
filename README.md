@@ -41,8 +41,81 @@ AI Document Processor Accelerator is designed to help companies leverage LLMs to
 - az cli
 - azd cli
 - Python 3.11+
-- azure-functiosn-core-tools
-  
+- azure-functions-core-tools
+- uv (recommended) or pip
+
+## Python Environment Setup
+
+This project supports both `uv` (recommended) and traditional `pip` for dependency management.
+
+### Option 1: Using uv (Recommended)
+
+[uv](https://docs.astral.sh/uv/) is an extremely fast Python package manager written in Rust. It's significantly faster than pip and provides better dependency resolution.
+
+#### Installing uv
+
+```bash
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Or with pip
+pip install uv
+
+# Or with Homebrew (macOS)
+brew install uv
+```
+
+#### Setting up the environment with uv
+
+```bash
+cd pipeline
+
+# Create virtual environment and install dependencies
+uv venv
+source .venv/bin/activate  # Linux/macOS
+# OR
+.venv\Scripts\activate     # Windows
+
+# Install dependencies from pyproject.toml
+uv pip install -e .
+
+# Install with dev dependencies (for Jupyter notebooks)
+uv pip install -e ".[dev]"
+```
+
+#### Syncing dependencies (after pulling changes)
+
+```bash
+cd pipeline
+uv pip install -e .
+```
+
+#### Generating requirements.txt from pyproject.toml
+
+If you need a traditional `requirements.txt` (e.g., for Azure Functions deployment):
+
+```bash
+uv pip compile pyproject.toml -o requirements.txt
+```
+
+### Option 2: Using pip (Traditional)
+
+```bash
+cd pipeline
+
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Linux/macOS
+# OR
+.venv\Scripts\activate     # Windows
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
 ## Deployment Instructions
 
 1. Fork repo to your GH account
@@ -88,17 +161,24 @@ The default pipeline processes PDFs from the azure storage account bronze contai
 ## Start the function locally
 Starting the function app locally helps you quickly troubleshoot issues and add custom logic.
 
-- Linux / WSL
-  - Ensure Storage accounts enable shared key access (Azure Portal > Storage Account > Configuration). May need to refresh page to ensure update was effective
-  - Get Remote settings from the function app: `./scripts/getRemoteSettings.sh`\
-  - Check to ensure that Blob Connections strings are present in local.settings.json
-  - Start the venv and the function app locally `./scripts/startLocal.sh`
+### Prerequisites
+- Ensure Storage accounts enable shared key access (Azure Portal > Storage Account > Configuration)
 
-- Windows / PWSH
-  - Ensure Storage accounts enable shared key access (Azure Portal > Storage Account > Configuration). May need to refresh page to ensure update was effective
-  - Get Remote settings from the function app: `./scripts/getRemoteSettings.ps1`
-  - Check to ensure that Blob Connections strings are present in local.settings.json
-  - Start the venv and the function app locally `./scripts/startLocal.ps1`
+### Quick Start
+
+```bash
+# Linux/macOS
+./scripts/startLocal.sh
+
+# Windows (PowerShell)
+./scripts/startLocal.ps1
+```
+
+The script will automatically:
+- Create and activate a virtual environment
+- Install dependencies
+- Fetch remote settings from your deployed function app
+- Start the function app locally
 
 ## Network Isolated Deployment (ZTA)
 To deploy this accelerator in a network isolated environment with private endpoints follow the following steps:

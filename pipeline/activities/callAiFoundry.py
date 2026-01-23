@@ -7,7 +7,7 @@ from pipelineUtils.blob_functions import get_blob_content, write_to_blob
 from pipelineUtils.azure_openai import run_prompt
 import json
 
-name = "callAoai"
+name = "callAiFoundry"
 bp = df.Blueprint()
 
 @bp.function_name(name)

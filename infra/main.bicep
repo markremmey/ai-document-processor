@@ -143,7 +143,8 @@ param userPrincipalId string = principalId
 param functionAppHostPlan string
 
 @description('Enable storage account key access for local development. Should be false in production.')
-param allowStorageKeyAccess bool = false
+@allowed([false, true])
+param allowStorageKeyAccess bool
 
 @allowed(['B1', 'B2', 'S1', 'S2', 'S3', 'P1v2', 'P2v2', 'P3v2', 'FC1'])
 param functionAppSKU string = (functionAppHostPlan == 'FlexConsumption') ? 'FC1' : 'S2'
@@ -354,6 +355,10 @@ var appSettings = [
   {
     name: 'AI_SERVICES_ENDPOINT'
     value: 'https://${aiFoundry.outputs.aiServicesName}.cognitiveservices.azure.com/'
+  }
+  {
+    name: 'AZURE_AI_PROJECT_ENDPOINT'
+    value: 'https://${aiFoundry.outputs.aiServicesName}.services.ai.azure.com/api/projects/${aiFoundry.outputs.aiProjectName}'
   }
   {
     name: 'OPENAI_MODEL'
@@ -1517,6 +1522,7 @@ output COSMOS_DB_ACCOUNT_NAME string = cosmos.outputs.accountName
 output COSMOS_DB_URI string = 'https://${cosmosAccountName}.documents.azure.com:443/'
 output COSMOS_DB_DATABASE_NAME string = cosmos.outputs.databaseName
 output FUNCTION_STORAGE_ACCOUNT string = procFuncStorage.outputs.name
+output AZURE_AI_PROJECT_ENDPOINT string = 'https://${aiFoundry.outputs.aiServicesName}.services.ai.azure.com/api/projects/${aiFoundry.outputs.aiProjectName}'
 
 // Event Grid outputs for postDeploy script
 output BRONZE_SYSTEM_TOPIC_NAME string = bronzeSystemTopicName

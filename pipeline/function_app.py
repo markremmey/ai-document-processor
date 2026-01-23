@@ -6,7 +6,7 @@ import azure.durable_functions as df
 from azure.durable_functions import RetryOptions
 
 
-from activities import runDocIntel, callAiFoundry, writeToBlob, speechToText, callFoundryMultiModal
+from activities import runDocIntel, callAiFoundry, writeToBlob, speechToText, callFoundryMultiModal, callAiFoundryAgentic
 from configuration import Configuration
 
 from pipelineUtils.blob_functions import BlobMetadata
@@ -172,10 +172,11 @@ def process_blob(context):
     # Package the data into a dictionary
     call_aoai_input = {
         "text_result": text_result,
-        "instance_id": sub_orchestration_id 
+        "instance_id": sub_orchestration_id,
+        "blob_name": blob_name
     }
 
-    aoai_output = yield context.call_activity_with_retry("callAoai", retry_options, call_aoai_input)
+    aoai_output = yield context.call_activity_with_retry("callAiFoundryAgentic", retry_options, call_aoai_input)
     
 
     # 3. Write AOAI output to Blob Storage
@@ -199,3 +200,4 @@ app.register_functions(callAiFoundry.bp)
 app.register_functions(writeToBlob.bp)
 app.register_functions(speechToText.bp)
 app.register_functions(callFoundryMultiModal.bp)
+app.register_functions(callAiFoundryAgentic.bp)
