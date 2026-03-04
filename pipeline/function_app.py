@@ -6,7 +6,7 @@ import azure.durable_functions as df
 from azure.durable_functions import RetryOptions
 
 
-from activities import runDocIntel, callAiFoundry, writeToBlob, speechToText, callFoundryMultiModal
+from activities import runDocIntel, callAiFoundry, writeToBlob, speechToText, callFoundryMultiModal, callAiFoundryAgentic
 from configuration import Configuration
 
 from pipelineUtils.blob_functions import BlobMetadata
@@ -199,3 +199,4 @@ app.register_functions(callAiFoundry.bp)
 app.register_functions(writeToBlob.bp)
 app.register_functions(speechToText.bp)
 app.register_functions(callFoundryMultiModal.bp)
+app.register_functions(callAiFoundryAgentic.bp)
