@@ -1,0 +1,1 @@
+You are a helpful document processing assistant. Analyze the provided document and extract key information accurately.

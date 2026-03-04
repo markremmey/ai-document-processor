@@ -1,15 +1,81 @@
 import azure.durable_functions as df
 import asyncio
 import logging
+import os
+import io
+from typing import Annotated
 from agent_framework.azure import AzureAIAgentClient
+from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
+from pydantic import Field
+from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-from pipelineUtils.agent_functions import create_word_document, agent_context
+from pipelineUtils.blob_functions import write_to_blob
 from configuration import Configuration
 
 name = "callAiFoundryAgentic"
 bp = df.Blueprint()
 
 config = Configuration()
+FINAL_OUTPUT_CONTAINER = config.get_value("FINAL_OUTPUT_CONTAINER")
+AZURE_AI_PROJECT_ENDPOINT = config.get_value("AZURE_AI_PROJECT_ENDPOINT")
+OPENAI_MODEL = config.get_value("OPENAI_MODEL")
+
+# Global variable to store context for the tool
+_current_context = {}
+
+
+def create_word_document(
+    title: Annotated[str, Field(description="The title of the Word document.")],
+    summary: Annotated[str, Field(description="A brief summary or executive overview to include at the beginning.")],
+    content: Annotated[str, Field(description="The main content/body of the document. Use newlines to separate paragraphs.")],
+) -> str:
+    """
+    Creates a Word document with the specified title, summary, and content,
+    then uploads it to Azure Blob Storage.
+    """
+    try:
+        blob_name = _current_context.get('blob_name', 'output')
+        # Remove original extension and add .docx
+        base_name = blob_name.rsplit('.', 1)[0] if '.' in blob_name else blob_name
+        output_blob_name = f"{base_name}_summary.docx"
+
+        # Create a new Word document
+        doc = Document()
+
+        # Add title
+        title_paragraph = doc.add_heading(title, level=0)
+        title_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        # Add summary section
+        doc.add_heading('Summary', level=1)
+        summary_para = doc.add_paragraph(summary)
+        summary_para.style = 'Body Text'
+
+        # Add main content section
+        doc.add_heading('Document Content', level=1)
+
+        # Split content by newlines and add as paragraphs
+        paragraphs = content.split('\n')
+        for para_text in paragraphs:
+            if para_text.strip():
+                para = doc.add_paragraph(para_text.strip())
+                para.style = 'Body Text'
+
+        # Save to bytes buffer
+        buffer = io.BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+
+        # Upload to blob storage
+        write_to_blob(FINAL_OUTPUT_CONTAINER, output_blob_name, buffer.getvalue())
+
+        logging.info(f"Word document created and uploaded: {output_blob_name}")
+        return f"Successfully created Word document: {output_blob_name}"
+
+    except Exception as e:
+        logging.error(f"Error creating Word document: {e}")
+        return f"Error creating Word document: {str(e)}"
 
 
 AGENT_INSTRUCTIONS = """You are a document processing assistant. Your task is to analyze the provided document text and create a well-formatted Word document summary.
@@ -29,6 +95,36 @@ Always call the create_word_document tool with:
 """
 
 
+def _get_async_credential() -> AsyncDefaultAzureCredential:
+    """
+    Creates an async Azure credential matching the Configuration pattern.
+    """
+    tenant_id = os.environ.get('AZURE_TENANT_ID', "*")
+
+    if os.environ.get("AZURE_FUNCTIONS_ENVIRONMENT") == "Development":
+        return AsyncDefaultAzureCredential(
+            additionally_allowed_tenants=tenant_id,
+            exclude_environment_credential=True,
+            exclude_managed_identity_credential=True,
+            exclude_cli_credential=False,
+            exclude_powershell_credential=False,
+            exclude_shared_token_cache_credential=True,
+            exclude_developer_cli_credential=False,
+            exclude_interactive_browser_credential=True
+        )
+    else:
+        return AsyncDefaultAzureCredential(
+            additionally_allowed_tenants=tenant_id,
+            exclude_environment_credential=True,
+            exclude_managed_identity_credential=False,
+            exclude_cli_credential=True,
+            exclude_powershell_credential=True,
+            exclude_shared_token_cache_credential=True,
+            exclude_developer_cli_credential=True,
+            exclude_interactive_browser_credential=True
+        )
+
+
 async def run_agent(document_text: str, blob_name: str) -> str:
     """
     Runs the Azure AI Foundry agent to process the document and create a Word document.
@@ -40,22 +136,21 @@ async def run_agent(document_text: str, blob_name: str) -> str:
     Returns:
         str: The result message from the agent.
     """
-    # Load config values at runtime (not import time) to avoid startup failures
-    azure_ai_project_endpoint = config.get_value("AZURE_AI_PROJECT_ENDPOINT")
-    openai_model = config.get_value("OPENAI_MODEL")
-
     # Set context for the tool to access
-    agent_context['blob_name'] = blob_name
+    _current_context['blob_name'] = blob_name
 
-    async with AzureAIAgentClient(
-        project_endpoint=azure_ai_project_endpoint,
-        model_deployment_name=openai_model,
-        credential=config.credential,
-    ).as_agent(
-        name="DocumentProcessor",
-        instructions=AGENT_INSTRUCTIONS,
-        tools=create_word_document
-    ) as agent:
+    async with (
+        _get_async_credential() as credential,
+        AzureAIAgentClient(
+            project_endpoint=AZURE_AI_PROJECT_ENDPOINT,
+            model_deployment_name=OPENAI_MODEL,
+            async_credential=credential,
+            agent_name="DocumentProcessor"
+        ).as_agent(
+            instructions=AGENT_INSTRUCTIONS,
+            tools=create_word_document
+        ) as agent,
+    ):
         prompt = f"Please analyze the following document text and create a Word document summary:\n\n{document_text}"
         result = await agent.run(prompt)
         return result.text

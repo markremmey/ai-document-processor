@@ -9,7 +9,8 @@
       "Host.Triggers.DurableTask": "Information",
       "DurableTask.Core": "Warning",
       "DurableTask.AzureStorage": "Warning",
-      "Worker": "Warning"
+      "Worker": "Warning",
+      "azure_functions_worker": "Error"
     },
     "applicationInsights": {
       "samplingSettings": {

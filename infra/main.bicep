@@ -94,6 +94,10 @@ var _multiModal = multiModal
 param ai_vision_enabled bool = false
 var _ai_vision_enabled = ai_vision_enabled
 
+@description('Source for prompt files. Use "prompts.yaml" to load from blob storage or "local" to load from local files in pipelineUtils/prompts directory.')
+@allowed(['prompts.yaml', 'local'])
+param promptFile string = 'prompts.yaml'
+
 // PricipalId that will have access to KeyVault secrets, this is automatically set by the 'azd' tool to the principal runing azd
 @description('Id of the user or app to assign application roles')
 param principalId string = ''
@@ -340,7 +344,7 @@ var appSettings = [
   }
   {
     name: 'PROMPT_FILE'
-    value: 'prompts.yaml'
+    value: promptFile
   }
   {
     name: 'OPENAI_API_VERSION'

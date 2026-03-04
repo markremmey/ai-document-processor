@@ -57,19 +57,37 @@ fi
 # Get the blobs_extension key for webhook URL
 echo ""
 echo "Getting blobs_extension key from function app..."
-BLOBS_EXTENSION_KEY=$(az functionapp keys list \
-    --name "$FUNCTION_APP_NAME" \
-    --resource-group "$RESOURCE_GROUP" \
-    --query "systemKeys.blobs_extension" \
-    -o tsv)
+
+# Retry loop for getting the key - function may need time to initialize
+MAX_KEY_RETRIES=10
+KEY_RETRY_DELAY=15
+BLOBS_EXTENSION_KEY=""
+
+for i in $(seq 1 $MAX_KEY_RETRIES); do
+    echo "  Attempt $i/$MAX_KEY_RETRIES to retrieve blobs_extension key..."
+    BLOBS_EXTENSION_KEY=$(az functionapp keys list \
+        --name "$FUNCTION_APP_NAME" \
+        --resource-group "$RESOURCE_GROUP" \
+        --query "systemKeys.blobs_extension" \
+        -o tsv 2>/dev/null)
+    
+    if [ -n "$BLOBS_EXTENSION_KEY" ]; then
+        echo "blobs_extension key retrieved successfully."
+        break
+    fi
+    
+    if [ $i -lt $MAX_KEY_RETRIES ]; then
+        echo "  Key not available yet. Waiting ${KEY_RETRY_DELAY}s for function to initialize..."
+        sleep $KEY_RETRY_DELAY
+    fi
+done
 
 if [ -z "$BLOBS_EXTENSION_KEY" ]; then
-    echo "ERROR: Could not retrieve blobs_extension key."
+    echo "ERROR: Could not retrieve blobs_extension key after $MAX_KEY_RETRIES attempts."
     echo "The function app may not be fully initialized yet."
+    echo "Try running 'azd hooks run postdeploy' again in a few minutes."
     exit 1
 fi
-
-echo "blobs_extension key retrieved successfully."
 
 # Build webhook URL
 WEBHOOK_ENDPOINT="https://${FUNCTION_APP_NAME}.azurewebsites.net/runtime/webhooks/blobs?functionName=Host.Functions.${FUNCTION_NAME}&code=${BLOBS_EXTENSION_KEY}"
@@ -92,10 +110,16 @@ fi
 # Warmup: Hit the function endpoint to wake it up before validation
 echo ""
 echo "Warming up function to ensure it responds during webhook validation..."
-for i in 1 2 3 4 5; do
-    echo "  Warmup attempt $i/5..."
-    curl -s -X POST -H "Content-Type: application/json" -d "{}" --max-time 60 "$WEBHOOK_ENDPOINT" > /dev/null 2>&1 || true
-    sleep 2
+echo "This may take a minute for Flex Consumption cold start..."
+for i in $(seq 1 10); do
+    echo "  Warmup attempt $i/10..."
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Content-Type: application/json" -d "{}" --max-time 90 "$WEBHOOK_ENDPOINT" 2>/dev/null || echo "000")
+    echo "    Response: $HTTP_CODE"
+    if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "400" ]; then
+        echo "  Function is responding!"
+        break
+    fi
+    sleep 5
 done
 echo "Warmup complete."
 
